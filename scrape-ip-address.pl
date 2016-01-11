@@ -11,8 +11,11 @@ my @ip_checking_website_array=
 	  'https://www.privateinternetaccess.com/pages/whats-my-ip/' );
 my @specified_websites; # Turn this into an array referenced by our %argument_hash.
 
+# I am doing command line argument processing with regex instead of GetOpt:Long because
+#   there is greater flexibility for custom data structures (as used below)
+#   and makes cleaner code (unlinke scalar variables, all possible hash elements do 
+#   not need to be declared).
 my %argument_hash;
-
 for ( my $argument_index = 0; defined $ARGV[$argument_index]; $argument_index++ ) {
 	if      ( $ARGV[$argument_index] =~ m/^\-\?$|^\-h$|^\-?\-help$/ ) {
 		print "Help:\n";
@@ -59,7 +62,6 @@ if ( $argument_hash{'interface_argument'} ) {
 }
 
 for my $ip_checking_website ( @ip_checking_website_array ) {
-	# Make this an option.
 	if ( $argument_hash{'verbose'} ) {
 		print "Website: ".$ip_checking_website."\n";
 	}
