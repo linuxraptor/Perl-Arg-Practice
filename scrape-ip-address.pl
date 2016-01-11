@@ -3,15 +3,37 @@
 use strict;
 use warnings;
 
-my $interface="tun0";
 my @ip_checking_website_array=
 	( 'http://whatsmyip.net/',
 	  'http://www.ipchicken.com/',
 	  'http://mxtoolbox.com/WhatIsMyIP/',
 	  'https://www.iplocation.net/find-ip-address',
 	  'https://www.privateinternetaccess.com/pages/whats-my-ip/' );
-my $check_all_websites;
-my @specified_websites;
+my @specified_websites; # Turn this into an array referenced by our %argument_hash.
+
+my %argument_hash;
+
+for ( my $argument_index = 0; defined $ARGV[$argument_index]; $argument_index++ ) {
+	if      ( $ARGV[$argument_index] =~ m/^\-\?$|^\-h$|^\-?\-help$/ ) {
+		print "Help:\n";
+		exit 0;
+	} elsif ( $ARGV[$argument_index] =~ m/^\-a$|^\-?\-all$/ ) {
+		$argument_hash{'check_all_websites'} = 1;
+	} elsif ( $ARGV[$argument_index] =~ m/^\-q$|^\-?\-headless$/ ) {
+		$argument_hash{'headless'} = 1;
+	} elsif ( $ARGV[$argument_index] =~ m/^\-i$|^\-?\-interface$/ ) {
+		$argument_hash{'interface_argument'} = "--interface \'".$ARGV[++$argument_index]."\'";
+	} elsif ( $ARGV[$argument_index] =~ m/^\-v$|^\-?\-verbose$/ ) {
+		$argument_hash{'verbose'} = 1;
+	} else {
+		print STDERR "Argument not recognized: ".$ARGV[$argument_index]."\n";
+	}
+}
+
+if (( $argument_hash{'headless'} ) and ( $argument_hash{'verbose'} )) {
+	print STDERR "Warning: Option --verbose overrides --headless.\n";
+}
+
 # Future options:
 # no options - only return ip address. iterate over array until match is found. only error if all queries return no results.
 # -a --all, check all websites in array. error on any query. implies --verbose.
@@ -27,20 +49,32 @@ my @specified_websites;
 # if no IP is ever found, error upon exit.
 # look for curl command in available $PATH, and error if it does not exist.
 # check for curl error code, display the received error if anything but 200 is received.
+# check that specified interface exists.
 # functions! as always.
+
+my $curl_command = 'curl --max-time 10 --silent';
+
+if ( $argument_hash{'interface_argument'} ) {
+	$curl_command .= " ".$argument_hash{'interface_argument'};
+}
 
 for my $ip_checking_website ( @ip_checking_website_array ) {
 	# Make this an option.
-	# print "Website: ".$ip_checking_website."\n";;
-	my $curl_response=qx(curl --interface \"$interface\" --max-time 10 --silent \"$ip_checking_website\" 2>&1);
+	if ( $argument_hash{'verbose'} ) {
+		print "Website: ".$ip_checking_website."\n";
+	}
+	my $curl_response=qx($curl_command \"$ip_checking_website\" 2>&1);
 	# Specifically search for acceptable IP addresses: 0.0.0.0 - 255.255.255.255
 	# 			   255-250 or   249-200  or  199-100   or  99-10 or 9-0
 	if ( $curl_response =~ m/([25][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				 ([25][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				 ([25][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				 ([25][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])/x ) {
-		print $1.".".$2.".".$3.".".$4."\n";
-		if (( $check_all_websites ) or ( @specified_websites > 1 )) { 
+		print $1.".".$2.".".$3.".".$4;
+		if ( ! $argument_hash{'headless'} ) {
+			print "\n";
+		}
+		if (( $argument_hash{'check_all_websites'} ) or ( @specified_websites > 1 )) {
 			next;
 		} else {
 			last;
