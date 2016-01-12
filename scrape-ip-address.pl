@@ -8,7 +8,8 @@ my @ip_checking_website_array=
 	  'http://www.ipchicken.com/',
 	  'http://mxtoolbox.com/WhatIsMyIP/',
 	  'https://www.iplocation.net/find-ip-address',
-	  'https://www.privateinternetaccess.com/pages/whats-my-ip/' );
+	  'https://www.privateinternetaccess.com/pages/whats-my-ip/',
+	  'https://www.arin.net/simplewebutils/whatsmyip.html' );
 my @specified_websites; # Turn this into an array referenced by our %argument_hash.
 
 # I am doing command line argument processing with regex instead of GetOpt:Long because
