@@ -3,17 +3,43 @@
 use strict;
 use warnings;
 
-#print &convert_dot_decimal_to_CIDR_notation(192)."\n";
+print &convert_dot_decimal_to_CIDR_notation($ARGV[0])."\n";
 
 #print &convert_CIDR_to_binary_notation(24)."\n";
-print &convert_CIDR_to_dot_decimal_notation($ARGV[0])."\n";
+#print &convert_CIDR_to_dot_decimal_notation($ARGV[0])."\n";
 
 sub convert_dot_decimal_to_CIDR_notation {
-	# start testing with a single octet, then work up to a full set.
 	my $dot_decimal_mask = shift;
-	# Our binary is base 2 with a single "1" bit to allow for odd numbers. Add this "1" bit to our base 2 so the logs will work.
-	$dot_decimal_mask += 1;
-	my $CIDR_mask = log($dot_decimal_mask) / log(2);
+	my $CIDR_mask = 0;
+	my $binary_geometric_series;
+        while ( $dot_decimal_mask =~ m/([0-9]+)/g ) {
+		if ( $1 > 0 ) {
+			my $dot_decimal_octet = $1;
+			for ( my $possible_CIDR_octet = 8; $possible_CIDR_octet > 0; $possible_CIDR_octet-- ) {
+				$binary_geometric_series = '';
+				$binary_geometric_series .= "8 * 8 ";
+				$binary_geometric_series .= "* ( 2 ";
+				if ( $possible_CIDR_octet > 1 ) {
+					$binary_geometric_series .= "+ ( ";
+					for ( my $i=0; $i < ( $possible_CIDR_octet - 1 ); $i++ ) {
+						$binary_geometric_series .= "( 0.5**$i )";
+						if ( $i < ( $possible_CIDR_octet - 2 ) ) {
+							$binary_geometric_series .= "+";
+						}
+					}
+					$binary_geometric_series .= " ) ";
+				}
+				$binary_geometric_series .= ")";
+				my $dot_decimal_series_result = eval($binary_geometric_series);
+				if ( $dot_decimal_series_result == $dot_decimal_octet ) {
+					$CIDR_mask += $possible_CIDR_octet;
+					last;
+				} elsif ( $possible_CIDR_octet == 1 ) {
+					return "Invalid netmask: ".$dot_decimal_mask."\n";
+				}
+			}
+		}
+	}
 	return $CIDR_mask;
 }
 
