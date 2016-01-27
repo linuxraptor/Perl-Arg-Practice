@@ -7,18 +7,18 @@ my %argument_hash;
 
 for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 	# Detect if subnet input is CIDR or dot-decimal or whatever.
-	if ( $ARGV[$argc] =~  m/([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+	if ( $ARGV[$argc] =~  m/^([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\/
-				([3][0-2]|[1-2][0-9]|[0-9])/x ) {
+				([3][0-2]|[1-2][0-9]|[0-9])$/x ) {
 		# Add error handling here.
 		$argument_hash{'IP_address'} = $1.".".$2.".".$3.".".$4;
 		$argument_hash{'CIDR_subnet_mask'} = $5;
-	} elsif ( $ARGV[$argc] =~ m/([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+	} elsif ( $ARGV[$argc] =~ m/^([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
 				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])/x ) {
+				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])$/x ) {
 		if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
 			if ( defined $argument_hash{'IP_address'} ) {
 				print "Only one IP address and one subnet mask may be processed.\n";
@@ -33,15 +33,16 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 		} else {
 			$argument_hash{'dot_decimal_subnet_mask'} = $1.".".$2.".".$3.".".$4;
 		}
-	} elsif ( $ARGV[$argc] =~  m/\/([3][0-2]|[1-2][0-9]|[0-9])/ ) {
+	} elsif ( $ARGV[$argc] =~  m/^\/([3][0-2]|[1-2][0-9]|[0-9])$/ ) {
 		# Add error handling here. Maybe make "assign" function that checks for existing variable assignments?
 		$argument_hash{'CIDR_subnet_mask'} = $1;
 	} else {
 		# Error part of the conditional.
-		if ( $ARGV[$argc] =~ m/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/ ) {
+		# Let's try to give the user a hint of what is wrong.
+		if ( $ARGV[$argc] =~ m/^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})$/ ) {
 			print "Invalid IP address or subnet: ".$1."\n";
-		} elsif ( $ARGV[$argc] =~ m/\/?([0-9]{1,2})/ ) {
-			print "Invalid subnet: ".$1."\n";
+		} elsif ( $ARGV[$argc] =~ m/\/?([0-9]+)$/ ) {
+			print "Invalid subnet: /".$1."\n";
 		} else {
 			print "Argument not recognized: ".$ARGV[$argc]."\n";
 		}
@@ -49,12 +50,18 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 	}
 }
 
+# This maybe should integrated elsewhere.
 # if (( defined $argument_hash{'dot_decimal_subnet_mask'} ) and
 #     ( defined $argument_hash{'CIDR_subnet_mask'} )) {
 #    	print "Only one subnet mask may be requested.\n";
 # 	print "Received ".$argument_hash{'dot_decimal_subnet_mask'}." and /".$argument_hash{'CIDR_subnet_mask'}."\n";
 # 	exit 1;
 # }
+
+if ( defined $argument_hash{'CIDR_subnet_mask'} ) {
+	print &convert_CIDR_to_dot_decimal_notation( $argument_hash{'CIDR_subnet_mask'} )."\n";
+}
+exit 0;
 
 if ( $argument_hash{'dot_decimal_subnet_mask'} ) {
 	print "Subnet mask info:\n";
@@ -119,6 +126,10 @@ sub convert_CIDR_to_dot_decimal_notation {
 	my $dot_decimal_mask;
 	my $octet = 0;
 	my $remainder = ( $CIDR_mask % 8 );
+	if ( ( $CIDR_mask < 0 ) or ( $CIDR_mask > 32 ) ) {
+		print "Invalid subnet: /".$CIDR_mask."\n";
+		exit 1;
+	}
 	for ( my $iteration = ( $CIDR_mask / 8 ); $iteration > 0; $iteration-- ) {
 		$octet++;
 		# Keep track of the octet we are on to correctly place decimals.
