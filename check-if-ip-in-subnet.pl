@@ -39,7 +39,7 @@ use strict;
 # Work to do:
 # I need to compare results gathered from ipaddresslocation.org against the subnet prefixes in the IANA document.
 # I do not know if all the smaller subnets are accounted for.  I am not sure how they could be, seeing as they're
-# sometimes only a dozen IP addresses in size and all the IANA prefixes are /8 (~16M addresses).
+# sometimes only a dozen IP addresses in size and all the IANA prefixes are /8 (~16.8M addresses).
 
 # should also account for private ip address space:
 # https://www.arin.net/simplewebutils/whatsmyip.html
