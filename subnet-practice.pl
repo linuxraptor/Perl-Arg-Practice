@@ -8,17 +8,19 @@ my %argument_hash;
 for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 	# Detect if subnet input is CIDR or dot-decimal or whatever.
 	if ( $ARGV[$argc] =~  m/^([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\/
-				([3][0-2]|[1-2][0-9]|[0-9])$/x ) {
+				 ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+				 ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+				 ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\/
+				 ([3][0-2]|[1-2][0-9]|[0-9])$/x ) {
 		# Add error handling here.
 		$argument_hash{'IP_address'} = $1.".".$2.".".$3.".".$4;
+		# This should be combined with the lower regex as a conditional.
+		# Set the subnet quantifiers to "?" and use "if ( defined $5 )...".
 		$argument_hash{'CIDR_subnet_mask'} = $5;
 	} elsif ( $ARGV[$argc] =~ m/^([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
-				    ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])$/x ) {
+				     ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+				     ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.
+				     ([2][5][0-5]|[2][0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])$/x ) {
 		if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
 			if ( defined $argument_hash{'IP_address'} ) {
 				print "Only one IP address and one subnet mask may be processed.\n";
@@ -33,8 +35,12 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 		} else {
 			$argument_hash{'dot_decimal_subnet_mask'} = $1.".".$2.".".$3.".".$4;
 		}
-	} elsif ( $ARGV[$argc] =~  m/^\/([3][0-2]|[1-2][0-9]|[0-9])$/ ) {
+	} elsif ( $ARGV[$argc] =~  m/^\/?([3][0-2]|[1-2][0-9]|[0-9])$/ ) {
 		# Add error handling here. Maybe make "assign" function that checks for existing variable assignments?
+		if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
+			$argument_hash{'IP_address'} = $argument_hash{'dot_decimal_subnet_mask'};
+			delete $argument_hash{'dot_decimal_subnet_mask'};
+		}
 		$argument_hash{'CIDR_subnet_mask'} = $1;
 	} else {
 		# Error part of the conditional.
@@ -58,35 +64,25 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 # 	exit 1;
 # }
 
-if ( defined $argument_hash{'CIDR_subnet_mask'} ) {
-	print &convert_CIDR_to_dot_decimal_notation( $argument_hash{'CIDR_subnet_mask'} )."\n";
-}
-exit 0;
 
-if ( $argument_hash{'dot_decimal_subnet_mask'} ) {
-	print "Subnet mask info:\n";
-	print $argument_hash{'dot_decimal_subnet_mask'}."\n";
-	my $CIDR_netmask = &convert_dot_decimal_to_CIDR_notation( $argument_hash{'dot_decimal_subnet_mask'} );
-	print "/".$CIDR_netmask."\n";
-	my $addresses_available_in_subnet = &determine_addresses_in_subnet( $CIDR_netmask );
-	print "Addresses available: ".$addresses_available_in_subnet."\n";
-	print "Hosts available : ".( $addresses_available_in_subnet - 2)."\n";
-	print "Binary representation: ".&convert_CIDR_to_binary_notation( $CIDR_netmask )."\n";
+if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
+	$argument_hash{'CIDR_subnet_mask'} = &convert_dot_decimal_to_CIDR_notation( $argument_hash{'dot_decimal_subnet_mask'} );
+} elsif ( defined $argument_hash{'CIDR_subnet_mask'} ) {
+	$argument_hash{'dot_decimal_subnet_mask'} =  &convert_CIDR_to_dot_decimal_notation( $argument_hash{'CIDR_subnet_mask'} );
 }
 
-exit 0;
+print "Subnet mask info:\n";
+print $argument_hash{'dot_decimal_subnet_mask'}."\n";
+print "/".$argument_hash{'CIDR_subnet_mask'}."\n";
+my $addresses_available_in_subnet = &determine_addresses_in_subnet( $argument_hash{'CIDR_subnet_mask'} );
+print "Addresses available: ".$addresses_available_in_subnet."\n";
+print "Hosts available : ".( $addresses_available_in_subnet - 2)."\n";
+print "Binary representation: ".&convert_CIDR_to_binary_notation( $argument_hash{'CIDR_subnet_mask'} )."\n";
 
-print "CIDR Subnet mask: /".&convert_dot_decimal_to_CIDR_notation( $ARGV[0] )."\n";
-print "Addresses available: ".&determine_addresses_in_subnet( &convert_dot_decimal_to_CIDR_notation( $ARGV[0] ) )."\n";
-print "Hosts available: ".( &determine_addresses_in_subnet( &convert_dot_decimal_to_CIDR_notation( $ARGV[0] ) ) - 2 )."\n";
-print "Binary representation:     ".&convert_CIDR_to_binary_notation( &convert_dot_decimal_to_CIDR_notation( $ARGV[0] ) )."\n";
-print "Binary representation(2):  ".&convert_IP_to_binary_notation( $ARGV[0] )."\n";
-#print &convert_CIDR_to_binary_notation(24)."\n";
-#print &convert_CIDR_to_dot_decimal_notation($ARGV[0])."\n";
-
+#exit 0;
 
 sub determine_addresses_in_subnet {
-	# Expects CIDR.
+	# Expects two-digit CIDR subnet mask.
 	my $received_CIDR_mask = shift;
 	my $available_addresses_in_subnet;
 	my $exponent_of_2 = ( 32 - $received_CIDR_mask );
@@ -99,6 +95,7 @@ sub determine_addresses_in_subnet {
 }
 
 sub convert_dot_decimal_to_CIDR_notation {
+	# Expects full dot-decimal subnet mask.
 	my $dot_decimal_mask = shift;
 	my $CIDR_mask = 0;
 	my $octet = 0;
@@ -122,32 +119,26 @@ sub convert_dot_decimal_to_CIDR_notation {
 }
 
 sub convert_CIDR_to_dot_decimal_notation {
+	# Expects two-digit CIDR subnet mask.
 	my $CIDR_mask = shift;
 	my $dot_decimal_mask;
 	my $octet = 0;
 	my $remainder = ( $CIDR_mask % 8 );
-	if ( ( $CIDR_mask < 0 ) or ( $CIDR_mask > 32 ) ) {
+	if ( ( $CIDR_mask < 1 ) or ( $CIDR_mask > 32 ) ) {
 		print "Invalid subnet: /".$CIDR_mask."\n";
 		exit 1;
 	}
 	for ( my $iteration = ( $CIDR_mask / 8 ); $iteration > 0; $iteration-- ) {
 		$octet++;
-		# Keep track of the octet we are on to correctly place decimals.
+		# Keep track of the octet we are on and correctly place decimals.
 		if ( $octet > 1 ) {
 			$dot_decimal_mask .= ".";
 		}
-		# We see above that $iteration = ( $CIDR_mask / 8 ).
-		# If the CIDR mask is larger than 8, then the first octet must be 255.
-		# If the CIDR mask is larger than 16, then the first two octets must be 255.
-		# We use this conditional to skip the math logic when it is unnecessary.
-		if ( $iteration >= 1 ) {
-			$dot_decimal_mask .= "255";
-			next;
-		} else {
+		if ( $iteration < 1 ) {
 			my $binary_geometric_series;
 			$binary_geometric_series .= "64 ";
 			$binary_geometric_series .= "* ( 2 ";
-			# The "> 1" conditional is not actually necessary. The mathematical expression is still correct
+			# The "> 1" conditional is not actually mathematically necessary. The expression is still correct
 			#  while "$possible_CIDR_octet" is less than or equal to 1, but perl complains about
 			#  empty brackets in those situations: "( )".
 			if ( $remainder > 1 ) {
@@ -162,6 +153,12 @@ sub convert_CIDR_to_dot_decimal_notation {
 			}
 			$binary_geometric_series .= ")";
 			$dot_decimal_mask .= eval($binary_geometric_series);
+		} else {
+			# We see above that $iteration = ( $CIDR_mask / 8 ).
+			# If the CIDR mask is divisible by 8 at least once, then the first octet must be 255.
+			# If the CIDR mask is divisible by 8 at least twice, then the first two octets must be 255; and so on.
+			# We use this conditional to skip the math when it is not yet necessary.
+			$dot_decimal_mask .= "255";
 		}
 	}
 	my $empty_octets = ( 4 - $octet );
@@ -170,6 +167,7 @@ sub convert_CIDR_to_dot_decimal_notation {
 }
 
 sub convert_CIDR_to_binary_notation {
+	# Expects two-digit CIDR subnet mask.
 	my $submitted_CIDR_mask = shift;
 	my $number_of_binary_zeros = ( 32 - $submitted_CIDR_mask );
 	my $binary_mask = "1"x$submitted_CIDR_mask;
@@ -180,8 +178,6 @@ sub convert_CIDR_to_binary_notation {
 	return $binary_mask;
 }
 
-# Only handles a single integer right now.
-# Full 32 bit decimal numbers will be processed soon.
 sub convert_IP_to_binary_notation {
 	my $received_dot_decimal_mask = shift;
 	my $binary_IP_address;
