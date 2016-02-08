@@ -35,7 +35,7 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 		} else {
 			$argument_hash{'dot_decimal_subnet_mask'} = $1.".".$2.".".$3.".".$4;
 		}
-	} elsif ( $ARGV[$argc] =~  m/^\/?([3][0-2]|[1-2][0-9]|[0-9])$/ ) {
+	} elsif ( $ARGV[$argc] =~ m/^\/?([3][0-2]|[1-2][0-9]|[0-9])$/ ) {
 		# Add error handling here. Maybe make "assign" function that checks for existing variable assignments?
 		if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
 			$argument_hash{'IP_address'} = $argument_hash{'dot_decimal_subnet_mask'};
@@ -57,13 +57,12 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++) {
 }
 
 # This maybe should integrated elsewhere.
-# if (( defined $argument_hash{'dot_decimal_subnet_mask'} ) and
-#     ( defined $argument_hash{'CIDR_subnet_mask'} )) {
-#    	print "Only one subnet mask may be requested.\n";
-# 	print "Received ".$argument_hash{'dot_decimal_subnet_mask'}." and /".$argument_hash{'CIDR_subnet_mask'}."\n";
-# 	exit 1;
-# }
-
+if (( defined $argument_hash{'dot_decimal_subnet_mask'} ) and
+    ( defined $argument_hash{'CIDR_subnet_mask'} )) {
+   	print "Only one subnet mask may be requested.\n";
+	print "Received ".$argument_hash{'dot_decimal_subnet_mask'}." and /".$argument_hash{'CIDR_subnet_mask'}."\n";
+	exit 1;
+}
 
 if ( defined $argument_hash{'dot_decimal_subnet_mask'} ) {
 	$argument_hash{'CIDR_subnet_mask'} = &convert_dot_decimal_to_CIDR_notation( $argument_hash{'dot_decimal_subnet_mask'} );
@@ -78,8 +77,6 @@ my $addresses_available_in_subnet = &determine_addresses_in_subnet( $argument_ha
 print "Addresses available: ".$addresses_available_in_subnet."\n";
 print "Hosts available : ".( $addresses_available_in_subnet - 2)."\n";
 print "Binary representation: ".&convert_CIDR_to_binary_notation( $argument_hash{'CIDR_subnet_mask'} )."\n";
-
-#exit 0;
 
 sub determine_addresses_in_subnet {
 	# Expects two-digit CIDR subnet mask.
