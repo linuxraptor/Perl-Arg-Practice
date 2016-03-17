@@ -15,8 +15,12 @@ for ( my $argc = 0; defined $ARGV[$argc]; $argc++ ) {
 		&help();
 	} elsif ( $ARGV[$argc] =~ m/^\-\-count-ip$/ ) {
 		$argument_hash{'count-ip'} = 1;
-	} elsif (  $ARGV[$argc] =~ m/^\-?\-jobs$|^-j$/ ) {
+	} elsif ( $ARGV[$argc] =~ m/^\-?\-jobs$|^-j$/ ) {
 		 $argument_hash{'jobs'} = $ARGV[++$argc];
+	} elsif ( $ARGV[$argc] =~ m/^\-?\-head$|^-h$/ ) {
+		$argument_hash{'top_results'} = $ARGV[++$argc];
+	} elsif ( $ARGV[$argc] =~ m/^\-?\-pretty$|^-p$/ ) {
+		$argument_hash{'pretty'} = 1;
 	} else {
 		$argument_hash{'target'} = $ARGV[$argc];
 	}
@@ -29,7 +33,7 @@ if ( defined $argument_hash{'jobs'} ) {
 	eval "use $parallel_forkmanager_module";
 	# Check the eval-created STDERR array for errors. If there are errors, die.
 	if ( defined $@ and length $@ ) {
-		print STDERR "Cannot load perl module: ".$parallel_forkmanager_module."\n";
+		print STDERR "Cannot load perl module, make sure it is installed: ".$parallel_forkmanager_module."\n";
 		print STDERR $@;
 		# 2 seems to be the standard "cannot load module" error code.
 		exit 2;
@@ -58,7 +62,7 @@ and &target_is_readable( $argument_hash{'target'} ) ) {
 # For files that cannot be read or are not logfiles, put in a warning array
 # If no readable logfiles are available, die with an unhappy exit code
 # Otherwise
-# Dump warning array last
+# Dump warning array last, even after results.
 
 # BASH nasty one-liner that inspired it all:
 # tail -n 300 error_log | perl -ne 'if ( $_ =~ m/\[client ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\]/ ) { print $1."\n"; } else { print "No match found.\n"; }' | sort | uniq -c | sort -rn
@@ -72,11 +76,10 @@ if ( defined $argument_hash{'count-ip'} ) {
 		# Let's mix procedural and object-oriented programming, woo! </ sarcasm >
 		$process_fork_manager = Parallel::ForkManager->new( $argument_hash{'jobs'} );
 	}
-	my $test_scalar;
 	# This is a loop label for Parallel::ForkManager.
 	LOGFILE_PROCESSING_LOOP:
 	for my $file ( @files_to_process ) {
-		# This is to allow the parallel system to work.
+		# To allow the parallel system to work, each child process needs its own hash.
 		my %child_ip_hash;
 		if ( defined $argument_hash{'jobs'} ) {
 			$process_fork_manager->run_on_finish(
@@ -92,12 +95,8 @@ if ( defined $argument_hash{'count-ip'} ) {
 						}
 					}
 				}
-			); # Yep, all wrapped in an object. Weird, right?
+			); # Yep, all wrapped in an argument. Weird, right?
 			$process_fork_manager->start and next LOGFILE_PROCESSING_LOOP;
-		} else {
-			# If not parallel, set %child_ip_hash to update the main %ip_hash.
-			# Adds overhead but greatly improves compatibility.
-			%child_ip_hash = %ip_hash;
 		}
 		print "Analyzing: ".$file."\n";
 		my $filehandle;
@@ -110,35 +109,50 @@ if ( defined $argument_hash{'count-ip'} ) {
 		}
 		for my $line (<$filehandle>) {
 			# This could be more strict ( only catch octets 0-255),
-			# but how much improvement will that provide for the computational cost? Regex is expensive.
+			# but how much improvement will that provide for the additional computational cost? Regex is expensive.
 			if ( $line =~ m/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/ ) {
-				if ( defined $child_ip_hash{$1} ) {
-					$child_ip_hash{$1}++;
+				if ( defined $argument_hash{'jobs'} ) {
+					if ( defined $child_ip_hash{$1} ) {
+						$child_ip_hash{$1}++;
+					} else {
+						$child_ip_hash{$1} = 1;
+					}
 				} else {
-					$child_ip_hash{$1} = 1;
+					if ( defined $ip_hash{$1} ) {
+						$ip_hash{$1}++;
+					} else {
+						$ip_hash{$1} = 1;
+					}
 				}
 			}	
 		}
 		close $filehandle;
 		if ( defined $argument_hash{'jobs'} ) {
-			# print "Passing variables back to parent process:\n".%child_ip_hash."\n";
-			# print Dumper( %child_ip_hash )."\n\n\n";
 			$process_fork_manager->finish( 0, \%child_ip_hash );
-		} else {
-			undef %ip_hash;
-			%ip_hash = %child_ip_hash;
 		}
-		# Maybe do something like, unless defined 'jobs' then %ip_hash = %child_ip_hash ?
-		# No, that wont work cuz now we make a new child hash every run.
-		# Make the hash combining code a submodule? That'll have some overhead...
 	}
 	if ( defined $argument_hash{'jobs'} ) {
 		$process_fork_manager->wait_all_children;
 	}
-	print "All child processes have been collected.\n";
-	# print Dumper( %ip_hash );
+	if ( not defined $argument_hash{'top_results'} ) {
+		$argument_hash{'top_results'} = 10;
+	}
+	my $first_numeric_result = 1;
+	my $numeric_buffer;
 	for my $ip_address ( sort { $ip_hash{$b} <=> $ip_hash{$a} or $b cmp $a } keys %ip_hash ) {
-		print $ip_hash{$ip_address}." ".$ip_address."\n";
+		if ( $argument_hash{'top_results'} > 0 ) {
+			if ( defined $argument_hash{'pretty'} ) {
+				if ( $first_numeric_result == 1 ) {
+					$numeric_buffer = ( ( length $ip_hash{$ip_address} ) + 1 );
+				}
+				print " " x ( $numeric_buffer - length $ip_hash{$ip_address} );
+			}
+			print $ip_hash{$ip_address}." ".$ip_address."\n";
+			$argument_hash{'top_results'}--;
+		} else {
+			last;
+		}
+		$first_numeric_result = 0;
 	}
 }
 
