@@ -2,12 +2,12 @@
 
 use warnings;
 use strict;
-use Data::Dumper;
 
-# This is specifically the radix algo for sorting the least significant digit.
+# This script specifically uses the radix algorithm for sorting least significant digit.
 
 my @unsorted_numbers;
 my %argument_hash;
+$argument_hash{'delimiter'} = ' ';
 
 for ( my $argc = 0; defined $ARGV[$argc]; $argc++ ) {
 	if ( $ARGV[$argc] =~ m/^\-?\-help$|^\-h$|^\-?$/ ) {
@@ -91,9 +91,13 @@ for ( my $iteration = 1; $iteration <= $largest_num_of_digits; $iteration++ ) {
 	}
 }
 
+# Remove our previously added zero padding and print our final result! :-)
 for ( my $i = 0; $i < ( scalar @padded_unsorted_numbers ); $i++ ) {
 	if ( $padded_unsorted_numbers[$i] =~ m/^[0]*([0-9]+)$/ ) {
-		print $1." ";
+		print $1;
+	}
+	if ( $i < ( ( scalar @padded_unsorted_numbers ) - 1 ) ) {
+		print $argument_hash{'delimiter'};
 	}
 }
 print "\n";
@@ -105,14 +109,16 @@ sub help {
 	$help_string .= "The purpose of this script is to make a working example\n";
 	$help_string .= "of the \"radix\" sorting algorithm. This script sorts\n";
 	$help_string .= "based on the least significant digit of the inputted\n";
-	$help_string .= "numbers.\n";
+	$help_string .= "numbers. The only required input is the group of numbers\n";
+	$help_string .= "you would like sorted.\n";
 	$help_string .= "\n";
 	$help_string .= "USAGE:   radix-sort-practice.pl [OPTIONS] [NUMBERS]\n";
 	$help_string .= "         radix-sort-practice.pl --delimiter ':' 57 26 96 18\n";
 	$help_string .= "\n";
 	$help_string .= "OPTIONS:\n";
 	$help_string .= " --help, -h       Print this help screen. Ignores all other options.\n";
-	$help_string .= " --delimiter, -d  Set the delimiter for outputted sorted numbers.\n";
+	$help_string .= " --delimiter, -d  Set the delimiter for sorted number output. Default is space.\n";
+	$help_string .= " --verbose, -v    Display data structures for each step of algorithm.\n";
 	print $help_string;
 	exit 0;
 }
